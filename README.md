@@ -31,7 +31,7 @@
 1. 通过[Zapper API](https://api.zapper.fi/v1/zap-in/uniswap-v2/transaction ) 去调用 [0x API](https://0x.org/docs/api#get-swapv1quote), 组装`swapData`后返回到前端, `_swapTarget`设为`RING`, 这部分使用`0x`把USDT/ETH换成RING.
 2. 用户通过MetaMask调用`web3.eth.sendTransaction`执行合约.
 3. 合约执行:
-    * 把USDT/ETH换成RING.
+    * 通过`0x swap`把USDT/ETH换成RING.
     * 把RING通过`uniswap swap`换一部分为WOOD.
     * 把RING和WOOD添加到流动性池.
 
@@ -41,7 +41,8 @@
 1. 将输入资产按照USD计价, 通过`fair asset price()`(ChainLink, Uniswap's TWAP, CoinGecko)计算资产`inputUSD`,
 2. 获取uniswap池中资产价值, `getReserves()` `totalSupply`, 则`pricePerPoolToken` = `reserveUSD` / `totalSupply`
 3. `_minPoolTokens` = (`inputUSD` / `pricePerPoolToken`) * ( 1 - `slippage` ). 
-  
+
+ZapOut 过程类似省略. 
   
 问题: 
 1. Zapper 没有测试网 (可以将Zapper部署到Kovan, 直接通过0x的测试网Kovan测试).
