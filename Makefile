@@ -1,4 +1,4 @@
-all    :; dapp build
+all    :; dapp --use solc:0.5.17 build
 clean  :; dapp clean
 test   :; dapp test
-deploy :; dapp create Zapper
+deploy :; bash bin/deploy
