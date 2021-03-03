@@ -70,7 +70,7 @@ ZapOut 过程类似省略.
 * 把RING通过`uniswap swap`换一部分为WOOD.
 * 把RING和WOOD添加到流动性池.
 	
-注: `minOtherTokenIn` 通过[getAmountOut](https://uniswap.org/docs/v2/smart-contracts/library/#getamountout)获取.
+注: `minOtherTokenIn` 通过[getAmountOut](https://uniswap.org/docs/v2/smart-contracts/library/#getamountout) 和 [combinedSwap.calculateSwapInAmount](https://github.com/Uniswap/uniswap-v2-periphery/blob/e8919d87045c1c80000aa9f734d5ca9df8647270/contracts/examples/ExampleCombinedSwapAddRemoveLiquidity.sol#L46)获取.
 	`minOtherTokenIn` = `getAmountOut` * ( 1 - `slippage` )
 
 问题:
