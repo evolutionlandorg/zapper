@@ -36,24 +36,46 @@ set -e
 # 0x0000000000000000000000000000000000000000
 # false
 
+# # test buyToken=GOLD 
+# seth send $TOKEN_GOLD "approve(address)" $ZAPIN
 # amount=$(seth --to-wei 3.2 ether)
-# minlp=$(seth --to-wei 1.5 ether)
-# swap=$TOKEN_RING
-# data=$(seth calldata)
-# aff=$(seth --to-uint256 0)
-# residual=$(seth --to-uint256 0)
+# minlp=$(seth --to-wei 0.5 ether)
+# swap=0x0000000000000000000000000000000000000000
+# data=0x0
+# aff=0x0000000000000000000000000000000000000000
+# residual=false
 # seth send $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)" $TOKEN_GOLD $TOKEN_LP_GOLD_RING $amount $minlp $swap $data $aff $residual    
 
-curl 'https://api.zapper.fi/v1/zap-in/uniswap-v2/transaction?api_key=5d1237c2-3840-4733-8e92-c5a58fe81b88&ownerAddress=0x6ab5d3e5069326ff4601e77c3651f0c216d7e036&poolAddress=0xbb2b8038a1640196fbe3e38816f3e67cba72d940&sellTokenAddress=0x0000000000000000000000000000000000000000&sellAmount=399275204024750622&gasPrice=93100000000&slippagePercentage=0.03' \
-  -H 'authority: api.zapper.fi' \
-  -H 'accept: application/json, text/plain, */*' \
-  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36' \
-  -H 'origin: https://zapper.fi' \
-  -H 'sec-fetch-site: same-site' \
-  -H 'sec-fetch-mode: cors' \
-  -H 'sec-fetch-dest: empty' \
-  -H 'referer: https://zapper.fi/' \
-  -H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8' \
-  --compressed
+# # test buyToken=RING
+# seth send $TOKEN_RING "approve(address)" $ZAPIN
+# amount=$(seth --to-wei 10 ether)
+# minlp=$(seth --to-wei 0.5 ether)
+# swap=0x0000000000000000000000000000000000000000
+# data=0x0
+# aff=0x0000000000000000000000000000000000000000
+# residual=false
+# seth send $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)" $TOKEN_RING $TOKEN_LP_GOLD_RING $amount $minlp $swap $data $aff $residual    
+
+# test buyToken=ETH
+amount=$(seth --to-wei 0.001 ether)
+minlp=$(seth --to-wei 0.1 ether)
+swap=$UNISWAP_ROUTERV2
+deadline=$(bc <<< "$(date +%s) + 60 * 20")
+data=$(seth calldata "swapExactETHForTokens(uint256,address[],address,uint256)" $minlp [$WETH,$TOKEN_RING] $ZAPIN $deadline)
+aff=0x0000000000000000000000000000000000000000
+residual=false
+seth send -V $amount $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)" 0x0000000000000000000000000000000000000000 $TOKEN_LP_GOLD_RING $amount $minlp $swap $data $aff $residual    
+
+# curl 'https://api.zapper.fi/v1/zap-in/uniswap-v2/transaction?api_key=5d1237c2-3840-4733-8e92-c5a58fe81b88&ownerAddress=0x6ab5d3e5069326ff4601e77c3651f0c216d7e036&poolAddress=0xbb2b8038a1640196fbe3e38816f3e67cba72d940&sellTokenAddress=0x0000000000000000000000000000000000000000&sellAmount=399275204024750622&gasPrice=93100000000&slippagePercentage=0.03' \
+#   -H 'authority: api.zapper.fi' \
+#   -H 'accept: application/json, text/plain, */*' \
+#   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36' \
+#   -H 'origin: https://zapper.fi' \
+#   -H 'sec-fetch-site: same-site' \
+#   -H 'sec-fetch-mode: cors' \
+#   -H 'sec-fetch-dest: empty' \
+#   -H 'referer: https://zapper.fi/' \
+#   -H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8' \
+#   --compressed
 
 # {"to":"0x5acedba6c402e2682d312a7b4982eda0ccf2d2e3","from":"0x6ab5d3e5069326ff4601e77c3651f0c216d7e036","data":"0xdb254e500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bb2b8038a1640196fbe3e38816f3e67cba72d940000000000000000000000000000000000000000000000000058a82aebf84521e000000000000000000000000000000000000000000000000000000469c8f45b8000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000048d0e30db0869584cd000000000000000000000000f4e386b070a18419b5d3af56699f8a438dd18e890000000000000000000000000000000000000000000000ddfe8aa67c603e0189000000000000000000000000000000000000000000000000","value":"0x58a82aebf84521e","gasPrice":"93100000000","gas":"412138"}
