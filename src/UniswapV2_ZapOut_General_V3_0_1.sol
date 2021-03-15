@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at Etherscan.io on 2021-02-24
+ *Submitted for verification at Etherscan.io on 2021-03-08
 */
 
 // ███████╗░█████╗░██████╗░██████╗░███████╗██████╗░░░░███████╗██╗
@@ -25,7 +25,7 @@
 ///@author Zapper
 ///@notice this contract implements one click removal of liquidity from Uniswap V2 pools, receiving ETH, ERC tokens or both.
 
-pragma solidity ^0.5.5;
+pragma solidity ^0.5.7;
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -728,7 +728,11 @@ interface IUniswapV2Pair {
     ) external;
 }
 
-contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
+interface IWETH {
+    function withdraw(uint256 wad) external;
+}
+
+contract UniswapV2_ZapOut_General_V3_0_1 is ReentrancyGuard, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;
@@ -758,13 +762,9 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
     );
 
-	// Mainnet
-    // address
-        // private constant wethTokenAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-	// Ropsten
-    address
-        private constant wethTokenAddress = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
+    address private constant wethTokenAddress = address(
+        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    );
 
     constructor(uint256 _goodwill, uint256 _affiliateSplit) public {
         goodwill = _goodwill;
@@ -788,15 +788,15 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
     );
 
     /**
-    @notice Zap out in a pair of tokens
-    @param _FromUniPoolAddress The uniswap pair address to zapout
-    @param _IncomingLP The amount of LP
+    @notice Zap out in both tokens
+    @param FromUniPoolAddress Pool from which to remove liquidity
+    @param IncomingLP Quantity of LP to remove from pool
     @param affiliate Affiliate address
-    @return the amount of pair tokens received after zapout
-     */
+    @return Quantity of tokens received after zapout
+    */
     function ZapOut2PairToken(
-        address _FromUniPoolAddress,
-        uint256 _IncomingLP,
+        address FromUniPoolAddress,
+        uint256 IncomingLP,
         address affiliate
     )
         public
@@ -804,7 +804,7 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         stopInEmergency
         returns (uint256 amountA, uint256 amountB)
     {
-        IUniswapV2Pair pair = IUniswapV2Pair(_FromUniPoolAddress);
+        IUniswapV2Pair pair = IUniswapV2Pair(FromUniPoolAddress);
 
         require(address(pair) != address(0), "Error: Invalid Unipool Address");
 
@@ -812,22 +812,17 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         address token0 = pair.token0();
         address token1 = pair.token1();
 
-        IERC20(_FromUniPoolAddress).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _IncomingLP
-        );
+        IERC20 uniPool = IERC20(FromUniPoolAddress);
 
-        IERC20(_FromUniPoolAddress).safeApprove(
-            address(uniswapV2Router),
-            _IncomingLP
-        );
+        uniPool.safeTransferFrom(msg.sender, address(this), IncomingLP);
+
+        uniPool.safeApprove(address(uniswapV2Router), IncomingLP);
 
         if (token0 == wethTokenAddress || token1 == wethTokenAddress) {
             address _token = token0 == wethTokenAddress ? token1 : token0;
             (amountA, amountB) = uniswapV2Router.removeLiquidityETH(
                 _token,
-                _IncomingLP,
+                IncomingLP,
                 1,
                 1,
                 address(this),
@@ -853,7 +848,7 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
             (amountA, amountB) = uniswapV2Router.removeLiquidity(
                 token0,
                 token1,
-                _IncomingLP,
+                IncomingLP,
                 1,
                 1,
                 address(this),
@@ -882,143 +877,143 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
                 amountB.sub(tokenBGoodwill)
             );
         }
-        emit zapOut(msg.sender, _FromUniPoolAddress, token0, amountA);
-        emit zapOut(msg.sender, _FromUniPoolAddress, token1, amountB);
+        emit zapOut(msg.sender, FromUniPoolAddress, token0, amountA);
+        emit zapOut(msg.sender, FromUniPoolAddress, token1, amountB);
     }
 
     /**
     @notice Zap out in a single token
-    @param _ToTokenContractAddress The ERC20 token to zapout in (address(0x00) if ether)
-    @param _FromUniPoolAddress The uniswap pair address to zapout from
-    @param _IncomingLP The amount of LP to remove.
-    @param _minTokensRec indicates the minimum amount of tokens to receive
-    @param _swapTarget indicates the execution target for swap.
+    @param ToTokenContractAddress Address of desired token
+    @param FromUniPoolAddress Pool from which to remove liquidity
+    @param IncomingLP Quantity of LP to remove from pool
+    @param minTokensRec Minimum quantity of tokens to receive
+    @param swapTargets Execution targets for swaps
     @param swap1Data DEX swap data
     @param swap2Data DEX swap data
-    @param affiliate Affiliate address 
-    @return the amount of eth/tokens received after zapout
-     */
+    @param affiliate Affiliate address
+    */
     function ZapOut(
-        address _ToTokenContractAddress,
-        address _FromUniPoolAddress,
-        uint256 _IncomingLP,
-        uint256 _minTokensRec,
-        address[] memory _swapTarget,
+        address ToTokenContractAddress,
+        address FromUniPoolAddress,
+        uint256 IncomingLP,
+        uint256 minTokensRec,
+        address[] memory swapTargets,
         bytes memory swap1Data,
         bytes memory swap2Data,
         address affiliate
-    ) public nonReentrant stopInEmergency returns (uint256 tokenBought) {
-        //transfer goodwill and reoves liquidity
+    ) public nonReentrant stopInEmergency returns (uint256 tokensRec) {
         (uint256 amountA, uint256 amountB) = _removeLiquidity(
-            _FromUniPoolAddress,
-            _IncomingLP
+            FromUniPoolAddress,
+            IncomingLP
         );
 
         //swaps tokens to token
-        tokenBought = _swapTokens(
-            _FromUniPoolAddress,
+        tokensRec = _swapTokens(
+            FromUniPoolAddress,
             amountA,
             amountB,
-            _ToTokenContractAddress,
-            _swapTarget,
+            ToTokenContractAddress,
+            swapTargets,
             swap1Data,
             swap2Data
         );
-        require(tokenBought >= _minTokensRec, "High slippage");
-
-        emit zapOut(
-            msg.sender,
-            _FromUniPoolAddress,
-            _ToTokenContractAddress,
-            tokenBought
-        );
+        require(tokensRec >= minTokensRec, "High slippage");
 
         uint256 totalGoodwillPortion;
 
         // transfer toTokens to sender
-        if (_ToTokenContractAddress == address(0)) {
+        if (ToTokenContractAddress == address(0)) {
             totalGoodwillPortion = _subtractGoodwill(
                 ETHAddress,
-                tokenBought,
+                tokensRec,
                 affiliate
             );
 
-            msg.sender.transfer(tokenBought.sub(totalGoodwillPortion));
+            msg.sender.transfer(tokensRec.sub(totalGoodwillPortion));
         } else {
             totalGoodwillPortion = _subtractGoodwill(
-                _ToTokenContractAddress,
-                tokenBought,
+                ToTokenContractAddress,
+                tokensRec,
                 affiliate
             );
 
-            IERC20(_ToTokenContractAddress).safeTransfer(
+            IERC20(ToTokenContractAddress).safeTransfer(
                 msg.sender,
-                tokenBought.sub(totalGoodwillPortion)
+                tokensRec.sub(totalGoodwillPortion)
             );
         }
 
-        return tokenBought.sub(totalGoodwillPortion);
+        tokensRec = tokensRec.sub(totalGoodwillPortion);
+
+        emit zapOut(
+            msg.sender,
+            FromUniPoolAddress,
+            ToTokenContractAddress,
+            tokensRec
+        );
+
+        return tokensRec;
     }
 
     /**
-    @notice Zap out in a pair of tokens with permit
-    @param _FromUniPoolAddress indicates the liquidity pool
-    @param _IncomingLP indicates the amount of LP to remove from pool
+    @notice Zap out in both tokens with permit
+    @param FromUniPoolAddress Pool from which to remove liquidity
+    @param IncomingLP Quantity of LP to remove from pool
     @param affiliate Affiliate address to share fees
-    @param _permitData indicates the encoded permit data, which contains owner, spender, value, deadline, v,r,s values. 
-    @return  amountA - indicates the amount received in token0, amountB - indicates the amount received in token1 
+    @param permitData Encoded permit data, which contains owner, spender, value, deadline, r,s,v values 
+    @return  amountA, amountB - Quantity of tokens received 
     */
     function ZapOut2PairTokenWithPermit(
-        address _FromUniPoolAddress,
-        uint256 _IncomingLP,
+        address FromUniPoolAddress,
+        uint256 IncomingLP,
         address affiliate,
-        bytes calldata _permitData
+        bytes calldata permitData
     ) external stopInEmergency returns (uint256 amountA, uint256 amountB) {
         // permit
-        (bool success, ) = _FromUniPoolAddress.call(_permitData);
+        (bool success, ) = FromUniPoolAddress.call(permitData);
         require(success, "Could Not Permit");
 
         (amountA, amountB) = ZapOut2PairToken(
-            _FromUniPoolAddress,
-            _IncomingLP,
+            FromUniPoolAddress,
+            IncomingLP,
             affiliate
         );
     }
 
     /**
     @notice Zap out in a signle token with permit
-    @param _ToTokenContractAddress indicates the toToken address to which tokens to convert.
-    @param _FromUniPoolAddress indicates the liquidity pool
-    @param _IncomingLP indicates the amount of LP to remove from pool
-    @param _minTokensRec indicatest the minimum amount of toTokens to receive
-    @param _permitData indicates the encoded permit data, which contains owner, spender, value, deadline, v,r,s values. 
-    @param _swapTarget indicates the execution target for swap.
+    @param ToTokenContractAddress indicates the toToken address to which tokens to convert.
+    @param FromUniPoolAddress indicates the liquidity pool
+    @param IncomingLP indicates the amount of LP to remove from pool
+    @param minTokensRec indicatest the minimum amount of toTokens to receive
+    @param permitData indicates the encoded permit data, which contains owner, spender, value, deadline, v,r,s values. 
+    @param swapTargets indicates the execution target for swap.
     @param swap1Data DEX swap data
     @param swap2Data DEX swap data
-    @param affiliate Affiliate address to share fees
+    @param affiliate Affiliate address
     */
     function ZapOutWithPermit(
-        address _ToTokenContractAddress,
-        address _FromUniPoolAddress,
-        uint256 _IncomingLP,
-        uint256 _minTokensRec,
-        bytes memory _permitData,
-        address[] memory _swapTarget,
+        address ToTokenContractAddress,
+        address FromUniPoolAddress,
+        uint256 IncomingLP,
+        uint256 minTokensRec,
+        bytes memory permitData,
+        address[] memory swapTargets,
         bytes memory swap1Data,
         bytes memory swap2Data,
         address affiliate
     ) public stopInEmergency returns (uint256) {
         // permit
-        (bool success, ) = _FromUniPoolAddress.call(_permitData);
+        (bool success, ) = FromUniPoolAddress.call(permitData);
         require(success, "Could Not Permit");
 
         return (
             ZapOut(
-                _ToTokenContractAddress,
-                _FromUniPoolAddress,
-                _IncomingLP,
-                _minTokensRec,
-                _swapTarget,
+                ToTokenContractAddress,
+                FromUniPoolAddress,
+                IncomingLP,
+                minTokensRec,
+                swapTargets,
                 swap1Data,
                 swap2Data,
                 affiliate
@@ -1026,115 +1021,105 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         );
     }
 
-    function _removeLiquidity(address _FromUniPoolAddress, uint256 _IncomingLP)
+    function _removeLiquidity(address FromUniPoolAddress, uint256 IncomingLP)
         internal
         returns (uint256 amountA, uint256 amountB)
     {
-        IUniswapV2Pair pair = IUniswapV2Pair(_FromUniPoolAddress);
+        IUniswapV2Pair pair = IUniswapV2Pair(FromUniPoolAddress);
 
         require(address(pair) != address(0), "Error: Invalid Unipool Address");
 
-        //get pair tokens
         address token0 = pair.token0();
         address token1 = pair.token1();
 
-        IERC20(_FromUniPoolAddress).safeTransferFrom(
+        IERC20(FromUniPoolAddress).safeTransferFrom(
             msg.sender,
             address(this),
-            _IncomingLP
+            IncomingLP
         );
 
-        IERC20(_FromUniPoolAddress).safeApprove(
+        IERC20(FromUniPoolAddress).safeApprove(
             address(uniswapV2Router),
-            _IncomingLP
+            IncomingLP
         );
 
-        //remove liquidity
         (amountA, amountB) = uniswapV2Router.removeLiquidity(
             token0,
             token1,
-            _IncomingLP,
+            IncomingLP,
             1,
             1,
             address(this),
             deadline
         );
-        require(amountA > 0 && amountB > 0, "Insufficient Liquidity");
+        require(amountA > 0 && amountB > 0, "Removed insufficient Liquidity");
     }
 
     function _swapTokens(
-        address _FromUniPoolAddress,
-        uint256 _amountA,
-        uint256 _amountB,
-        address _toToken,
-        address[] memory _swapTarget,
+        address FromUniPoolAddress,
+        uint256 amountA,
+        uint256 amountB,
+        address toToken,
+        address[] memory swapTargets,
         bytes memory swap1Data,
         bytes memory swap2Data
     ) internal returns (uint256 tokensBought) {
-        require(_swapTarget.length == 2, "Invalid data for 0x swap");
-
-        address token0 = IUniswapV2Pair(_FromUniPoolAddress).token0();
-        address token1 = IUniswapV2Pair(_FromUniPoolAddress).token1();
+        address token0 = IUniswapV2Pair(FromUniPoolAddress).token0();
+        address token1 = IUniswapV2Pair(FromUniPoolAddress).token1();
 
         //swap token0 to toToken
-        if (token0 == _toToken) {
-            tokensBought = tokensBought.add(_amountA);
+        if (token0 == toToken) {
+            tokensBought = tokensBought.add(amountA);
         } else {
             //swap token using 0x swap
             tokensBought = tokensBought.add(
-                _fillQuote(
-                    token0,
-                    _toToken,
-                    _amountA,
-                    _swapTarget[0],
-                    swap1Data
-                )
+                _fillQuote(token0, toToken, amountA, swapTargets[0], swap1Data)
             );
         }
 
         //swap token1 to toToken
-        if (token1 == _toToken) {
-            tokensBought = tokensBought.add(_amountB);
+        if (token1 == toToken) {
+            tokensBought = tokensBought.add(amountB);
         } else {
             //swap token using 0x swap
             tokensBought = tokensBought.add(
-                _fillQuote(
-                    token1,
-                    _toToken,
-                    _amountB,
-                    _swapTarget[1],
-                    swap2Data
-                )
+                _fillQuote(token1, toToken, amountB, swapTargets[1], swap2Data)
             );
         }
     }
 
     function _fillQuote(
-        address _fromTokenAddress,
-        address _toToken,
-        uint256 _amount,
-        address _swapTarget,
+        address fromTokenAddress,
+        address toToken,
+        uint256 amount,
+        address swapTarget,
         bytes memory swapData
     ) internal returns (uint256) {
         uint256 valueToSend;
-        if (_fromTokenAddress == address(0)) {
-            valueToSend = _amount;
-        } else {
-            IERC20 fromToken = IERC20(_fromTokenAddress);
-            fromToken.safeApprove(address(_swapTarget), 0);
-            fromToken.safeApprove(address(_swapTarget), _amount);
+
+        if (fromTokenAddress == wethTokenAddress && toToken == address(0)) {
+            IWETH(wethTokenAddress).withdraw(amount);
+            return amount;
         }
 
-        uint256 initialBalance = _toToken == address(0)
-            ? address(this).balance
-            : IERC20(_toToken).balanceOf(address(this));
+        if (fromTokenAddress == address(0)) {
+            valueToSend = amount;
+        } else {
+            IERC20 fromToken = IERC20(fromTokenAddress);
+            fromToken.safeApprove(address(swapTarget), 0);
+            fromToken.safeApprove(address(swapTarget), amount);
+        }
 
-        (bool success, ) = _swapTarget.call.value(valueToSend)(swapData);
+        uint256 initialBalance = toToken == address(0)
+            ? address(this).balance
+            : IERC20(toToken).balanceOf(address(this));
+
+        (bool success, ) = swapTarget.call.value(valueToSend)(swapData);
         require(success, "Error Swapping Tokens");
 
-        uint256 finalBalance = _toToken == address(0)
+        uint256 finalBalance = toToken == address(0)
             ? (address(this).balance).sub(initialBalance)
-            : IERC20(_toToken).balanceOf(address(this)).sub(initialBalance);
+            : IERC20(toToken).balanceOf(address(this)).sub(initialBalance);
 
         require(finalBalance > 0, "Swapped to Invalid Intermediate");
 
@@ -1142,69 +1127,36 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
     }
 
     /**
-    @notice this method returns the amount of tokens received in underlying tokens after removal of liquidity.
-    @param _FromUniPoolAddress indicates the liquidity pool.
-    @param _tokenA indicates the tokenA of pool
-    @param _tokenB indicates the tokenB of pool
-    @param _liquidity indicates the amount of liquidity to remove.
-    @return  amountA - indicates the amount removed in token0, amountB - indicates the amount removed in token1 
+    @notice Utility function to determine quantity and addresses of tokens being removed
+    @param FromUniPoolAddress Pool from which to remove liquidity
+    @param liquidity Quantity of LP tokens to remove.
+    @return  amountA- amountB- Quantity of token0 and token1 removed
+    @return  token0- token1- Addresses of the underlying tokens to be removed
     */
     function removeLiquidityReturn(
-        address _FromUniPoolAddress,
-        address _tokenA,
-        address _tokenB,
-        uint256 _liquidity
-    ) external view returns (uint256 amountA, uint256 amountB) {
-        IUniswapV2Pair pair = IUniswapV2Pair(_FromUniPoolAddress);
-
-        (uint256 amount0, uint256 amount1) = _getBurnAmount(
-            _FromUniPoolAddress,
-            pair,
-            _tokenA,
-            _tokenB,
-            _liquidity
-        );
-
-        (address token0, ) = _sortTokens(_tokenA, _tokenB);
-
-        (amountA, amountB) = _tokenA == token0
-            ? (amount0, amount1)
-            : (amount1, amount0);
-
-        require(amountA >= 1, "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
-        require(amountB >= 1, "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
-    }
-
-    function _sortTokens(address tokenA, address tokenB)
-        internal
-        pure
-        returns (address token0, address token1)
+        address FromUniPoolAddress,
+        uint256 liquidity
+    )
+        external
+        view
+        returns (
+            uint256 amountA,
+            uint256 amountB,
+            address token0,
+            address token1
+        )
     {
-        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
-        (token0, token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
-        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
-    }
+        IUniswapV2Pair pair = IUniswapV2Pair(FromUniPoolAddress);
+        token0 = pair.token0();
+        token1 = pair.token1();
 
-    function _getBurnAmount(
-        address _FromUniPoolAddress,
-        IUniswapV2Pair pair,
-        address _token0,
-        address _token1,
-        uint256 _liquidity
-    ) internal view returns (uint256 amount0, uint256 amount1) {
-        uint256 balance0 = IERC20(_token0).balanceOf(_FromUniPoolAddress);
-        uint256 balance1 = IERC20(_token1).balanceOf(_FromUniPoolAddress);
+        uint256 balance0 = IERC20(token0).balanceOf(FromUniPoolAddress);
+        uint256 balance1 = IERC20(token1).balanceOf(FromUniPoolAddress);
 
         uint256 _totalSupply = pair.totalSupply();
 
-        amount0 = _liquidity.mul(balance0) / _totalSupply; // using balances ensures pro-rata distribution
-        amount1 = _liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
-        require(
-            amount0 > 0 && amount1 > 0,
-            "UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED"
-        );
+        amountA = liquidity.mul(balance0) / _totalSupply;
+        amountB = liquidity.mul(balance1) / _totalSupply;
     }
 
     function _subtractGoodwill(
@@ -1237,12 +1189,12 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         stopped = !stopped;
     }
 
-    function set_new_goodwill(uint256 _new_goodwill) public onlyOwner {
+    function set_new_goodwill(uint256 new_goodwill) public onlyOwner {
         require(
-            _new_goodwill >= 0 && _new_goodwill <= 100,
+            new_goodwill >= 0 && new_goodwill <= 100,
             "GoodWill Value not allowed"
         );
-        goodwill = _new_goodwill;
+        goodwill = new_goodwill;
     }
 
     function set_feeWhitelist(address zapAddress, bool status)
@@ -1252,28 +1204,20 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         feeWhitelist[zapAddress] = status;
     }
 
-    function set_new_affiliateSplit(uint256 _new_affiliateSplit)
+    function set_new_affiliateSplit(uint256 new_affiliateSplit)
         external
         onlyOwner
     {
-        require(
-            _new_affiliateSplit <= 100,
-            "Affiliate Split Value not allowed"
-        );
-        affiliateSplit = _new_affiliateSplit;
+        require(new_affiliateSplit <= 100, "Affiliate Split Value not allowed");
+        affiliateSplit = new_affiliateSplit;
     }
 
-    function set_affiliate(address _affiliate, bool _status)
-        external
-        onlyOwner
-    {
-        affiliates[_affiliate] = _status;
+    function set_affiliate(address affiliate, bool status) external onlyOwner {
+        affiliates[affiliate] = status;
     }
 
-    function ownerWithdrawTokens(address[] calldata tokens) external onlyOwner {
-        // withdraw goodwill share + extra tokens if any sent
-        // prevent owner from withdrawing affiliate share
-
+    ///@notice Withdraw goodwill share, retaining affilliate share
+    function withdrawTokens(address[] calldata tokens) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 qty;
 
@@ -1291,6 +1235,7 @@ contract UniswapV2_ZapOut_General_V3 is ReentrancyGuard, Ownable {
         }
     }
 
+    ///@notice Withdraw affilliate share, retaining goodwill share
     function affilliateWithdraw(address[] calldata tokens) external {
         uint256 tokenBal;
         for (uint256 i = 0; i < tokens.length; i++) {
