@@ -53,10 +53,10 @@ If liquidity pool is RING-GOLD.
 * `transferResidual` is `false`.
 * `_swapTarget` is [Uniswap Router V2](https://uniswap.org/docs/v2/smart-contracts/router02/).
 * `swapData` is calculated by follow steps:
-  	0. swap `ETH` to `RING`.
-  	1. [bestTradeExactIn](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/trade.ts#L257) find best `route`.
-	2. [swapCallParameters](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/router.ts#L75) produce `methodName` and `params`.
-	3. `swapData = router02.methods.methodName(params).encodeABI()`
+  	1. swap `ETH` to `RING`.
+  	2. [bestTradeExactIn](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/trade.ts#L257) find best `route`.
+	3. [swapCallParameters](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/router.ts#L75) produce `methodName` and `params`.
+	4. `swapData = router02.methods.methodName(params).encodeABI()`
 * `_minPoolTokens` is calculated by follow steps:
 	1. `lp = zapInContract.methods.ZapIn(_FromTokenContractAddress, _pairAddress, _amount, 0, _swapTarget, swapData, affiliate, transferResidual).call()`
 	2. `slippage` is `settings` which user's input.
@@ -105,10 +105,10 @@ so `token0` is `RING`, `token1` is `GOLD`
 * `transferResidual` is `false`.
 * `swapTargets` is [[Uniswap Router V2](https://uniswap.org/docs/v2/smart-contracts/router02/),0x0000000000000000000000000000000000000000].
 * `swap1Data` is calculated by follow steps:
-  	0. swap `RING` to `GOLD`
-  	1. [getLiquidityValue](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/pair.ts#L177) Calculates the exact amount of `token0` and `token1` that `IncomingLP` amount of liquidity tokens represent as `amount1` and `amount2`.
-	2. [minimumAmountOut](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/trade.ts#L212) Calculates `amountOutMin`.
-	3. `swap1Data = router02.methods.swapTokensForExactTokens(amount1, amountOutMin).encodeABI()`.
+  	1. swap `RING` to `GOLD`
+  	2. [getLiquidityValue](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/pair.ts#L177) Calculates the exact amount of `token0` and `token1` that `IncomingLP` amount of liquidity tokens represent as `amount1` and `amount2`.
+	3. [minimumAmountOut](https://github.com/Uniswap/uniswap-v2-sdk/blob/91d9b42b9896c977265b840dbde069c963b56630/src/entities/trade.ts#L212) Calculates `amountOutMin`.
+	4. `swap1Data = router02.methods.swapTokensForExactTokens(amount1, amountOutMin).encodeABI()`.
 * `swap2Data` is `0x0`.
 
 #### Receive token in the pool. etc: ETH
@@ -119,11 +119,11 @@ so `token0` is `RING`, `token1` is `GOLD`
 * `transferResidual` is `false`.
 * `swapTargets` is [[Uniswap Router V2](https://uniswap.org/docs/v2/smart-contracts/router02/),[Uniswap Router V2](https://uniswap.org/docs/v2/smart-contracts/router02/)].
 * `swap1Data` is calculated by follow steps:
-  	0. swap `RING` to `ETH`
-	1. `swap1Data = router02.methods.swapTokensForExactETH(amount1, amountOutMin).encodeABI()`.
+  	1. swap `RING` to `ETH`
+	2. `swap1Data = router02.methods.swapTokensForExactETH(amount1, amountOutMin).encodeABI()`.
 * `swap2Data` is calculated by follow steps:
-  	0. swap `GOLD` to `ETH`
-	1. `swap2Data = router02.methods.swapTokensForExactETH(amount2, amountOutMin).encodeABI()`.
+  	1. swap `GOLD` to `ETH`
+	2. `swap2Data = router02.methods.swapTokensForExactETH(amount2, amountOutMin).encodeABI()`.
 
 ```solidity
     /**
