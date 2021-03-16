@@ -28,7 +28,7 @@
     ) external payable nonReentrant stopInEmergency returns (uint256)
 ```
 实现方式:
-1. 通过[Zapper API](https://api.zapper.fi/v1/zap-in/uniswap-v2/transaction ) 去调用 [0x API](https://0x.org/docs/api#get-swapv1quote), 组装`swapData`后返回到前端, `_swapTarget`设为`0x`, 这部分使用`0x`把USDT/ETH换成RING.
+1. 通过[Zapper API](https://api.zapper.fi/v1/zap-in/uniswap-v2/transaction ) 去调用 [0x API](https://0x.org/docs/api#get-swapv1quote), 组装`swapData`后返回到前端, `_swapTarget`设为`[ZeroEx](https://etherscan.io/address/0xdef1c0ded9bec7f1a1670819833240f027b25eff#code)`, 这部分使用`0x`把USDT/ETH换成RING.
 2. 用户通过MetaMask调用`web3.eth.sendTransaction`执行合约.
 3. 合约执行:
     * 通过`0x swap`把USDT/ETH换成RING.

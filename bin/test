@@ -50,14 +50,15 @@ set -e
 # lp0=$(bc <<< "$swapOut * $totalSupply / ($res0 + $swapOut)") 
 
 # seth send $TOKEN_GOLD "approve(address)" $ZAPIN
-# amount=$(seth --to-wei 3.2 ether)
-# minlp=0
-# swap=0x0000000000000000000000000000000000000000
-# data=0x0
-# aff=0x0000000000000000000000000000000000000000
-# residual=false
-# lp=$(seth call $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)(uint256)" $TOKEN_GOLD $TOKEN_LP_GOLD_RING $amount $minlp $swap $data $aff $residual)
-# seth send $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)(uint256)" $TOKEN_GOLD $TOKEN_LP_GOLD_RING $amount $lp $swap $data $aff $residual
+amount=$(seth --to-wei 3.2 ether)
+minlp=0
+swap=0x0000000000000000000000000000000000000000
+data=0x0
+aff=0x0000000000000000000000000000000000000000
+residual=false
+lp=$(seth call $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)(uint256)" $TOKEN_GOLD $TOKEN_LP_GOLD_RING $amount $minlp $swap $data $aff $residual)
+lp=$(bc <<< "$lp * 97 / 100")
+seth send $ZAPIN "ZapIn(address,address,uint256,uint256,address,bytes,address,bool)(uint256)" $TOKEN_GOLD $TOKEN_LP_GOLD_RING $amount $lp $swap $data $aff $residual
 
 
 # # ZapIn test buyToken=RING
@@ -77,6 +78,7 @@ set -e
 # swapOut1=$(echo $swapOut | cut -d',' -f 2)
 # swap=$UNISWAP_ROUTERV2
 # deadline=$(bc <<< "$(date +%s) + 60 * 20")
+# swapOut1=$(bc <<< "$swapOut1 * 97 / 100")
 # data=$(seth calldata "swapExactETHForTokens(uint256,address[],address,uint256)" $swapOut1 [$WETH,$TOKEN_RING] $ZAPIN $deadline)
 # aff=0x0000000000000000000000000000000000000000
 # residual=false
