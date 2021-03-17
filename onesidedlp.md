@@ -43,9 +43,6 @@
 3. `_minPoolTokens` = (`inputUSD` / `pricePerPoolToken`) * ( 1 - `slippage` ). 
 
 ZapOut 过程类似省略. 
-  
-问题: 
-1. Zapper 没有测试网 (可以将Zapper部署到Kovan, 直接通过0x的测试网Kovan测试).
 
 ## Uniswap
 场景: 用户持有RING/WOOD   
@@ -71,7 +68,4 @@ ZapOut 过程类似省略.
 	
 注: `minOtherTokenIn` 通过[getAmountOut](https://uniswap.org/docs/v2/smart-contracts/library/#getamountout) 和 [combinedSwap.calculateSwapInAmount](https://github.com/Uniswap/uniswap-v2-periphery/blob/e8919d87045c1c80000aa9f734d5ca9df8647270/contracts/examples/ExampleCombinedSwapAddRemoveLiquidity.sol#L46)获取.
 	`minOtherTokenIn` = `getAmountOut` * ( 1 - `slippage` )
-
-问题:
-1. 需要用户持有加入流动性池中的某一种代币.
 
